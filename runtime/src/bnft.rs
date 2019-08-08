@@ -1,20 +1,7 @@
-// Encoding library
 use parity_codec::Encode;
-
-// Enables access to store a value in runtime storage
-// Imports the `Result` type that is returned from runtime functions
-// Imports the `decl_module!` and `decl_storage!` macros
 use support::{StorageValue, dispatch::Result, decl_module, decl_storage, decl_event};
-
-// Traits used for interacting with Substrate's Balances module
-// `Currency` gives you access to interact with the on-chain currency
-// `WithdrawReason` and `ExistenceRequirement` are enums for balance functions
 use support::traits::{Currency, WithdrawReason, ExistenceRequirement};
-
-// These are traits which define behavior around math and hashing
 use runtime_primitives::traits::{Zero, Hash, Saturating};
-
-// Enables us to verify an call to our module is signed by a user account
 use system::ensure_signed;
 
 pub trait Trait: balances::Trait {
