@@ -8,11 +8,36 @@ pub trait Trait: balances::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
+#[derive(Encode, Decode, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct bnft_class<Hash, Balance, Moment, Credential> {
+    name: String,
+    id: Hash,
+    total_supply: u64,
+    transfer_bounty: Balance,
+    stake: Balance,
+    expiry: Moment,
+    beneficiary_credential: Credential,
+    verifier_credential: Credential,
+    verification_bounty: Balance,
+    description: Hash,
+    ricardian_contract: Hash,
+}
+
+#[derive(Encode, Decode, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct bnft<Hash> {
+    uri: Hash,
+    class: Hash,
+}
+
 decl_storage! {
   trait Store for Module<T: Trait> as Demo {
     Payment get(payment): Option<T::Balance>;
     Pot get(pot): T::Balance;
     Nonce get(nonce): u64;
+
+      
   }
 }
 
