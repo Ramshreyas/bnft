@@ -56,7 +56,7 @@ pub type BlockNumber = u64;
 pub type Nonce = u64;
 
 /// Used for the module template in `./template.rs`
-mod demo;
+mod bnft;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -94,9 +94,9 @@ pub mod opaque {
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("bnft"),
 	impl_name: create_runtime_str!("bnft"),
-	authoring_version: 4,
-	spec_version: 5,
-	impl_version: 5,
+	authoring_version: 5,
+	spec_version: 6,
+	impl_version: 6,
 	apis: RUNTIME_API_VERSIONS,
 };
 
@@ -187,7 +187,9 @@ impl sudo::Trait for Runtime {
 	type Proposal = Call;
 }
 
-impl demo::Trait for Runtime {}
+impl bnft::Trait for Runtime {
+    type Event = Event;
+}
 
 construct_runtime!(
 	pub enum Runtime with Log(InternalLog: DigestItem<Hash, AuthorityId, AuthoritySignature>) where
@@ -203,7 +205,7 @@ construct_runtime!(
 		Balances: balances,
 		Sudo: sudo,
 		// Add the custom module here
-		Demo: demo::{Module, Call, Storage},
+		BNFT: bnft::{Module, Call, Storage, Event<T>},
 	}
 );
 
