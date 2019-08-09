@@ -2,7 +2,7 @@ use parity_codec::Encode;
 use support::{StorageValue, dispatch::Result, decl_module, decl_storage, decl_event};
 use support::traits::{Currency, WithdrawReason, ExistenceRequirement};
 use runtime_primitives::traits::{Zero, Hash, Saturating};
-use system::ensure_signed;
+use {system::ensure_signed, timestamp};
 
 pub trait Trait: balances::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
@@ -10,25 +10,26 @@ pub trait Trait: balances::Trait {
 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct bnft_class<Hash, Balance, Moment, Credential> {
+pub struct bnft_class<Hash, Balance, Moment, AccountId> {
     name: String,
-    id: Hash,
     total_supply: u64,
+    beneficiary_credential: Hash,
+    verifier_credential: Hash,
     transfer_bounty: Balance,
+    verification_bounty: Balance,
     stake: Balance,
     expiry: Moment,
-    beneficiary_credential: Credential,
-    verifier_credential: Credential,
-    verification_bounty: Balance,
     description: Hash,
     ricardian_contract: Hash,
+    creator: AccountId,
+    created_on: Moment,
 }
 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct bnft<Hash> {
     uri: Hash,
-    class: Hash,
+    classId: Hash,
 }
 
 decl_storage! {
@@ -37,7 +38,8 @@ decl_storage! {
     Pot get(pot): T::Balance;
     Nonce get(nonce): u64;
 
-      
+      BnftClasses get(getBnftClass): map T::Hash => bnft_class<Hash, Balance, Moment, AccountId>;
+      Bnfts get(getBnft): map T::AccountId => bnft<Hash>; 
   }
 }
 
@@ -51,6 +53,36 @@ decl_module! {
   pub struct Module<T: Trait> for enum Call where origin: T::Origin {
 
     fn deposit_event<T>() = default;
+
+    fn create_bnft(origin, name: T::String, ) -> Result {
+        //Ensure signed
+        let sender = ensure_signed(origin)?;
+
+        //Generate id for new bnft
+        let nonce = <Nonce<T>>::get();
+        let random_seed = <system::module<T>>::random_seed();
+        let random_hash = (random_seed, sender, nonce).using_encoded(<T as system::Trait>::Hashing::hash);
+        <Nonce<T>>::mutate(|n| *n += 1);
+
+        //Get creation time
+        let now = <timestamp::Module<T>>::get();
+
+        //Validate beneficiary credential
+
+        //Validate verifier credential
+
+        //Ensure expiry hasn't passed
+
+        //Create struct
+
+        //Save struct
+
+        //Transfer payment for creation
+
+        //Emit event
+
+        Ok(())
+    }
 
     fn set_payment(origin, value: T::Balance) -> Result {
         //Ensure signed
