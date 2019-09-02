@@ -205,7 +205,7 @@ construct_runtime!(
 		Balances: balances,
 		Sudo: sudo,
 		// Add the custom module here
-		BNFT: bnft::{Module, Call, Storage, Event<T>},
+		Bnft: bnft::{Module, Call, Storage, Event<T>},
 	}
 );
 

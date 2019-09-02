@@ -1,17 +1,18 @@
-use parity_codec::Encode;
-use support::{StorageValue, dispatch::Result, decl_module, decl_storage, decl_event};
+use parity_codec::{Decode, Encode};
+use support::{StorageValue, StorageMap, ensure, dispatch::Result, decl_module, decl_storage, decl_event};
 use support::traits::{Currency, WithdrawReason, ExistenceRequirement};
-use runtime_primitives::traits::{Zero, Hash, Saturating};
+use runtime_primitives::traits::{Zero, Hash, Saturating, As, CheckedAdd, CheckedMul, CheckedDiv};
 use {system::ensure_signed, timestamp};
+use rstd::prelude::*;
 
-pub trait Trait: balances::Trait {
+pub trait Trait: balances::Trait + timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct bnft_class<Hash, Balance, Moment, AccountId> {
-    name: String,
+pub struct BnftClass<Hash, Balance, Moment, AccountId> {
+    name: Hash,
     total_supply: u64,
     beneficiary_credential: Hash,
     verifier_credential: Hash,
@@ -27,25 +28,30 @@ pub struct bnft_class<Hash, Balance, Moment, AccountId> {
 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct bnft<Hash> {
+pub struct Bnft<Hash> {
     uri: Hash,
-    classId: Hash,
+    class_id: Hash,
 }
 
 decl_storage! {
-  trait Store for Module<T: Trait> as Demo {
+  trait Store for Module<T: Trait> as Bnft {
     Payment get(payment): Option<T::Balance>;
     Pot get(pot): T::Balance;
     Nonce get(nonce): u64;
 
-      BnftClasses get(getBnftClass): map T::Hash => bnft_class<Hash, Balance, Moment, AccountId>;
-      Bnfts get(getBnft): map T::AccountId => bnft<Hash>; 
+      BnftClasses get(get_bnft_class): map u64 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
+      Bnfts get(get_bnft): map T::AccountId => Bnft<T::Hash>; 
   }
 }
 
 decl_event! {
-    pub enum Event<T> where <T as system::Trait>::AccountId, <T as balances::Trait>::Balance {
+    pub enum Event<T> where 
+      <T as system::Trait>::AccountId, 
+      <T as balances::Trait>::Balance,
+      //<T as system::Trait>::Hash,
+    {
         PlayEvent(Balance, AccountId),
+        //BnftClassCreated(u64, BnftClass<Hash, Balance, Moment, AccountId>),
     }
 }
 
@@ -54,35 +60,78 @@ decl_module! {
 
     fn deposit_event<T>() = default;
 
-    fn create_bnft(origin, name: T::String, ) -> Result {
+    fn create_bnft_class(origin, 
+                         name: T::Hash, 
+                         total_supply: u64,
+                         beneficiary_credential: T::Hash,
+                         verifier_credential: T::Hash,
+                         transfer_bounty: T::Balance,
+                         verification_bounty: T::Balance,
+                         stake: T::Balance,
+                         validity: T::Moment,
+                         description: T::Hash,
+                         ricardian_contract: T::Hash) -> Result {
         //Ensure signed
         let sender = ensure_signed(origin)?;
 
         //Generate id for new bnft
-        let nonce = <Nonce<T>>::get();
-        let random_seed = <system::module<T>>::random_seed();
-        let random_hash = (random_seed, sender, nonce).using_encoded(<T as system::Trait>::Hashing::hash);
-        <Nonce<T>>::mutate(|n| *n += 1);
+        let mut nonce = Self::nonce();
 
         //Get creation time
         let now = <timestamp::Module<T>>::get();
 
-        //Validate beneficiary credential
-
-        //Validate verifier credential
-
-        //Ensure expiry hasn't passed
+        //Calculate expiry
+        let expiry = now.checked_add(&validity).ok_or("Overflow when setting expiry")?;
 
         //Create struct
-
-        //Save struct
+        let bnft_class = BnftClass {
+            name: name.clone(),
+            total_supply,
+            beneficiary_credential,
+            verifier_credential,
+            transfer_bounty,
+            verification_bounty,
+            stake,
+            expiry,
+            description,
+            ricardian_contract,
+            creator: sender.clone(),
+            created_on: now,
+        };
 
         //Transfer payment for creation
+        
+
+        //Save struct, nonce
+        <BnftClasses<T>>::insert(nonce, bnft_class);
+        nonce = nonce.wrapping_add(1);
+        <Nonce<T>>::put(nonce);
 
         //Emit event
+        //Self::deposit_event(RawEvent::BnftClassCreated(nonce, bnft_class));
 
         Ok(())
     }
+
+    // fn issue_bnft(origin, bnft_class_index: u64, uri: T::Hash) -> Result {
+    //     //Ensure Signed
+
+    //     //Ensure bnft class exists
+
+    //     //Ensure uri is unique
+
+    //     //Ensure beneficiary has correct credential
+
+    //     //Transfer stake
+
+    //     //Create bnft
+
+    //     //Save bnft
+
+    //     //Emit event
+
+    //     Ok(())
+    // } 
 
     fn set_payment(origin, value: T::Balance) -> Result {
         //Ensure signed
@@ -146,3 +195,4 @@ decl_module! {
     }
   } 
 }
+
