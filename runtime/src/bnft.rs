@@ -9,8 +9,8 @@ pub trait Trait: balances::Trait + timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
-#[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 pub struct BnftClass<Hash, Balance, Moment, AccountId> {
     name: Hash,
     total_supply: u64,
@@ -26,8 +26,8 @@ pub struct BnftClass<Hash, Balance, Moment, AccountId> {
     created_on: Moment,
 }
 
-#[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
+#[derive(Encode, Decode, Default, Clone, PartialEq)]
 pub struct Bnft<Hash> {
     uri: Hash,
     class_id: Hash,
@@ -35,23 +35,20 @@ pub struct Bnft<Hash> {
 
 decl_storage! {
   trait Store for Module<T: Trait> as Bnft {
-    Payment get(payment): Option<T::Balance>;
-    Pot get(pot): T::Balance;
     Nonce get(nonce): u64;
-
-      BnftClasses get(get_bnft_class): map u64 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
-      Bnfts get(get_bnft): map T::AccountId => Bnft<T::Hash>; 
+    BnftClasses get(get_bnft_class): map u64 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
+    Bnfts get(get_bnft): map T::AccountId => Bnft<T::Hash>; 
   }
 }
 
 decl_event! {
     pub enum Event<T> where 
-      <T as system::Trait>::AccountId, 
-      <T as balances::Trait>::Balance,
-      //<T as system::Trait>::Hash,
+      AccountId = <T as system::Trait>::AccountId, 
+      Balance = <T as balances::Trait>::Balance,
+      Hash = <T as system::Trait>::Hash,
+      Moment = <T as timestamp::Trait>::Moment,
     {
-        PlayEvent(Balance, AccountId),
-        //BnftClassCreated(u64, BnftClass<Hash, Balance, Moment, AccountId>),
+        BnftClassCreated(u64, BnftClass<Hash, Balance, Moment, AccountId>),
     }
 }
 
@@ -103,96 +100,36 @@ decl_module! {
         
 
         //Save struct, nonce
-        <BnftClasses<T>>::insert(nonce, bnft_class);
+        <BnftClasses<T>>::insert(nonce, bnft_class.clone());
         nonce = nonce.wrapping_add(1);
         <Nonce<T>>::put(nonce);
 
         //Emit event
-        //Self::deposit_event(RawEvent::BnftClassCreated(nonce, bnft_class));
+        Self::deposit_event(RawEvent::BnftClassCreated(nonce, bnft_class));
 
         Ok(())
     }
 
-    // fn issue_bnft(origin, bnft_class_index: u64, uri: T::Hash) -> Result {
-    //     //Ensure Signed
+    //fn issue_bnft(origin, bnft_class_index: u64, uri: T::Hash) -> Result {
+        //Ensure Signed
+        //let sender = ensure_signed(origin)?;
 
-    //     //Ensure bnft class exists
+        //Ensure bnft class exists
 
-    //     //Ensure uri is unique
+        //Ensure uri is unique
 
-    //     //Ensure beneficiary has correct credential
+        //Ensure beneficiary has correct credential
 
-    //     //Transfer stake
+        //Transfer stake
 
-    //     //Create bnft
+        //Create bnft
 
-    //     //Save bnft
+        //Save bnft
 
-    //     //Emit event
+        //Emit event
 
-    //     Ok(())
-    // } 
-
-    fn set_payment(origin, value: T::Balance) -> Result {
-        //Ensure signed
-        let _ = ensure_signed(origin)?;
-
-        //If payment is not initialized
-        if Self::payment().is_none() {
-            //Set the value of payment
-            <Payment<T>>::put(value);
-
-            //Initialize the pot with the same value
-            <Pot<T>>::put(value);
-        }
-
-        //Return Ok on success
-        Ok(())
-    }
-
-    fn play(origin) -> Result {
-        //Ensure signed
-        let sender = ensure_signed(origin)?;
-
-        //Ensure payment has been set
-        let payment = Self::payment().ok_or("Payment must be set")?;
-
-        //Get our current storage values
-        let mut nonce = Self::nonce();
-        let mut pot = Self::pot();
-
-        //Try to withdraw the payment, making sure it will not kill the account
-        let _ = <balances::Module<T> as Currency<_>>::withdraw(&sender, payment, WithdrawReason::Reserve, ExistenceRequirement::KeepAlive)?;
-
-        //Generate a random number between 0-255
-        if(<system::Module<T>>::random_seed(), &sender, nonce)
-            .using_encoded(<T as system::Trait>::Hashing::hash)
-            .using_encoded(|e| e[0] < 128)
-        {
-            //If the user won, deposit the pot winnings in her account
-            let _ = <balances::Module<T> as Currency<_>>::deposit_into_existing(&sender, pot)
-                .expect("`sender` must exist since a transactoin is being made");
-
-            //Reduce the pot to zero
-            pot = Zero::zero();
-        }
-
-        //Increase the pot value by the payment
-        pot = pot.saturating_add(payment);
-
-        //Increment the nonce
-        nonce = nonce.wrapping_add(1);
-
-        //Store the updated values
-        <Pot<T>>::put(pot);
-        <Nonce<T>>::put(nonce);
-
-        //Deposit event
-        Self::deposit_event(RawEvent::PlayEvent(payment, sender));
-
-        //Return ok
-        Ok(())
-    }
+        //Ok(())
+    //} 
   } 
 }
 
