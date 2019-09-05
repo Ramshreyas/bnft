@@ -39,6 +39,7 @@ decl_storage! {
     BnftClasses get(get_bnft_class): map u64 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
     Bnfts get(get_bnft): map T::Hash => Bnft<T::Hash>; 
     BnftIdByOwner get(get_bnft_owner): map T::AccountId => T::Hash;
+    RemainingBnftsForClass get(remaining_bnfts_for): map u64 => u64;
   }
 }
 
@@ -73,6 +74,8 @@ decl_module! {
         //Ensure signed
         let sender = ensure_signed(origin)?;
 
+        //Ensure name is unique
+
         //Generate id for new bnft
         let mut nonce = Self::nonce();
 
@@ -85,7 +88,7 @@ decl_module! {
         //Create struct
         let bnft_class = BnftClass {
             name: name.clone(),
-            total_supply,
+            total_supply: total_supply.clone(),
             beneficiary_credential,
             verifier_credential,
             transfer_bounty,
@@ -101,8 +104,9 @@ decl_module! {
         //Transfer payment for creation
         
 
-        //Save BnftClass, nonce
+        //Save BnftClass, remaining supply, nonce
         <BnftClasses<T>>::insert(nonce, bnft_class.clone());
+        <RemainingBnftsForClass<T>>::insert(nonce, total_supply);
 
         //Emit event
         Self::deposit_event(RawEvent::BnftClassCreated(nonce, bnft_class));
@@ -130,6 +134,8 @@ decl_module! {
         // Ensure beneficiary has correct credential
 
         //Ensure total supply has not been exceeded
+        let remainingBnftsForClass = Self::remaining_bnfts_for(class_index);
+        ensure!(remainingBnftsForClass > 0, "All BNFTs have been issued for this class");
 
         // Transfer stake
 
@@ -139,9 +145,10 @@ decl_module! {
           class_index,
         };
 
-        // Save bnft, assign to owner
+        // Save bnft, assign to owner, decrement remaining supply
         <Bnfts<T>>::insert(uri.clone(), bnft.clone());
         <BnftIdByOwner<T>>::insert(sender.clone(), uri.clone());
+        <RemainingBnftsForClass<T>>::insert(class_index, remainingBnftsForClass.clone() - 1);
 
         // Emit event
         Self::deposit_event(RawEvent::BnftIssued(sender, bnft));
