@@ -27,17 +27,18 @@ pub struct BnftClass<Hash, Balance, Moment, AccountId> {
 }
 
 #[cfg_attr(feature = "std", derive(Debug))]
-#[derive(Encode, Decode, Default, Clone, PartialEq)]
+#[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 pub struct Bnft<Hash> {
     uri: Hash,
-    class_id: Hash,
+    class_index: u64,
 }
 
 decl_storage! {
   trait Store for Module<T: Trait> as Bnft {
     Nonce get(nonce): u64;
     BnftClasses get(get_bnft_class): map u64 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
-    Bnfts get(get_bnft): map T::AccountId => Bnft<T::Hash>; 
+    Bnfts get(get_bnft): map T::Hash => Bnft<T::Hash>; 
+    BnftIdByOwner get(get_bnft_owner): map T::AccountId => T::Hash;
   }
 }
 
@@ -48,7 +49,8 @@ decl_event! {
       Hash = <T as system::Trait>::Hash,
       Moment = <T as timestamp::Trait>::Moment,
     {
-        BnftClassCreated(u64, BnftClass<Hash, Balance, Moment, AccountId>),
+      BnftClassCreated(u64, BnftClass<Hash, Balance, Moment, AccountId>),
+      BnftIssued(AccountId, Bnft<Hash>),  
     }
 }
 
@@ -99,37 +101,53 @@ decl_module! {
         //Transfer payment for creation
         
 
-        //Save struct, nonce
+        //Save BnftClass, nonce
         <BnftClasses<T>>::insert(nonce, bnft_class.clone());
-        nonce = nonce.wrapping_add(1);
-        <Nonce<T>>::put(nonce);
 
         //Emit event
         Self::deposit_event(RawEvent::BnftClassCreated(nonce, bnft_class));
 
+        //Increment nonce
+        nonce = nonce.wrapping_add(1);
+        <Nonce<T>>::put(nonce);
+
         Ok(())
     }
 
-    //fn issue_bnft(origin, bnft_class_index: u64, uri: T::Hash) -> Result {
+    fn issue_bnft(origin, 
+                  class_index: u64, 
+                  uri: T::Hash) -> Result {
         //Ensure Signed
-        //let sender = ensure_signed(origin)?;
+        let sender = ensure_signed(origin)?;
 
         //Ensure bnft class exists
+        let nonce = Self::nonce();
+        ensure!(class_index < nonce, "BNFT Class does not exist!"); 
 
-        //Ensure uri is unique
+        // Ensure uri is unique
+        ensure!(!<Bnfts<T>>::exists(uri), "Bnft already issued");
 
-        //Ensure beneficiary has correct credential
+        // Ensure beneficiary has correct credential
 
-        //Transfer stake
+        //Ensure total supply has not been exceeded
 
-        //Create bnft
+        // Transfer stake
 
-        //Save bnft
+        // Create bnft
+        let bnft = Bnft {
+          uri,
+          class_index,
+        };
 
-        //Emit event
+        // Save bnft, assign to owner
+        <Bnfts<T>>::insert(uri.clone(), bnft.clone());
+        <BnftIdByOwner<T>>::insert(sender.clone(), uri.clone());
 
-        //Ok(())
-    //} 
+        // Emit event
+        Self::deposit_event(RawEvent::BnftIssued(sender, bnft));
+
+        Ok(())
+    } 
   } 
 }
 
