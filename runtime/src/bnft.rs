@@ -31,6 +31,7 @@ pub struct BnftClass<Hash, Balance, Moment, AccountId> {
 pub struct Bnft<AccountId> {
   uri: AccountId,
   class_index: u64,
+  verified: bool,
 }
 
 decl_storage! {
@@ -141,6 +142,7 @@ decl_module! {
       let bnft = Bnft {
         uri: uri.clone(),
         class_index,
+        verified: false,
       };
 
       // Save bnft, assign to owner, decrement remaining supply
