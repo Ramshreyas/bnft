@@ -13,7 +13,7 @@ pub trait Trait: balances::Trait + timestamp::Trait {
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 pub struct BnftClass<Hash, Balance, Moment, AccountId> {
   name: Hash,
-  total_supply: u64,
+  total_supply: u32,
   beneficiary_credential: Hash,
   verifier_credential: Hash,
   transfer_bounty: Balance,
@@ -30,17 +30,23 @@ pub struct BnftClass<Hash, Balance, Moment, AccountId> {
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 pub struct Bnft<AccountId> {
   uri: AccountId,
-  class_index: u64,
+  class_index: u32,
   verified: bool,
 }
 
 decl_storage! {
   trait Store for Module<T: Trait> as Bnft {
-    Nonce get(nonce): u64;
-    BnftClasses get(get_bnft_class): map u64 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
-    Bnfts get(get_bnft): map T::AccountId => Bnft<T::AccountId>; 
-    BnftIdByOwner get(get_bnft_owner): map T::AccountId => T::AccountId;
-    RemainingBnftsForClass get(remaining_bnfts_for): map u64 => u64;
+    Nonce get(nonce): u64; 
+    BnftClasses get(get_bnft_class): map u32 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
+    RemainingBnftsForClass get(remaining_bnfts_for): map u32 => u32;
+
+    Bnfts get(get_bnft): map (T::AccountId, u32) => Bnft<T::AccountId>; 
+    BnftIndex get(index_for): map (T::AccountId, u32) => u32
+
+    BnftOwner get(owner_of): map (T::AccountId, u32) => Option<T::AccountId>;    
+    OwnedBnftsArray get(owner_by_index): map u32 => AccountId;
+
+    VerifiedBnfts get(get_verified_bnft): map T::AccountId => Bnft<T::AccountId>;
   }
 }
 
@@ -51,7 +57,7 @@ decl_event! {
     Hash = <T as system::Trait>::Hash,
     Moment = <T as timestamp::Trait>::Moment,
   {
-    BnftClassCreated(u64, BnftClass<Hash, Balance, Moment, AccountId>),
+    BnftClassCreated(u32, BnftClass<Hash, Balance, Moment, AccountId>),
     BnftIssued(AccountId, Bnft<AccountId>),  
   }
 }
@@ -62,7 +68,7 @@ decl_module! {
 
     fn create_bnft_class(origin, 
                          name: T::Hash, 
-                         total_supply: u64,
+                         total_supply: u32,
                          beneficiary_credential: T::Hash,
                          verifier_credential: T::Hash,
                          transfer_bounty: T::Balance,
@@ -118,7 +124,7 @@ decl_module! {
     }
 
     fn issue_bnft(origin, 
-                  class_index: u64, 
+                  class_index: u32, 
                   uri: T::AccountId) -> Result {
       //Ensure Signed
       let sender = ensure_signed(origin)?;
@@ -154,7 +160,38 @@ decl_module! {
       Self::deposit_event(RawEvent::BnftIssued(sender, bnft));
 
       Ok(())
-    } 
+    }
+
+    fn verifyAndBurn(origin,
+                     agent: T::AccountId
+                     class_index: u32,
+                     uri: T::AccountId,) -> Result {
+      //Ensure signed
+      let sender = ensure_signed(origin)?;
+
+      //Ensure BNFT exists
+      ensure!(<Bnfts<T>>::exists(&uri), "Bnft does not exist or is already verified");
+
+      //Ensure Agent owns BNFT
+      let bnft = Self::get_verified_bnft(&uri).ok_or("Bnft not found")?;
+      ensure!(bnft.
+
+      //Verify verifier has required credential
+
+      //Verify BNFT (Move to verified bnfts)
+
+      //Remove from Owned BNFTs
+
+      //Remove from Bnfts
+
+      //Release stake back to agent
+
+      //Award bounty to agent
+
+      //Emit events
+
+      Ok(())
+    }
   } 
 }
 
