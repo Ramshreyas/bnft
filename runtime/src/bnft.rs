@@ -38,7 +38,7 @@ decl_storage! {
   trait Store for Module<T: Trait> as Bnft {
     //Current index for Bnft Classes & Bnfts
     ClassCursor get(classCursor): u32; 
-    BnftCuror get(bnftCursor): u32;  
+    BnftCursor get(bnftCursor): u32;  
 
     //Bnft Class storage
     BnftClasses get(get_bnft_class): map u32 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
@@ -46,12 +46,12 @@ decl_storage! {
 
     //Issued Bnft Storage
     Bnfts get(get_bnft): map (T::AccountId, u32) => Bnft<T::AccountId>; 
-    BnftIndex get(index_for): map (T::AccountId, u32) => u32
     VerifiedBnfts get(get_verified_bnft): map T::AccountId => Bnft<T::AccountId>;
 
     //Owner storage
     BnftOwner get(owner_of): map (T::AccountId, u32) => Option<T::AccountId>;    
-    OwnedBnftsArray get(owner_by_index): map u32 => AccountId;
+    OwnedBnftsCount get(bnft_count_for): map T::AccountId => u32;
+    OwnedBnftsArray get(get_bnft_for): map (T::AccountId, u32) => T::AccountId;
   }
 }
 
@@ -88,7 +88,7 @@ decl_module! {
       //Ensure name is unique
 
       //Generate id for new bnft
-      let mut nonce = Self::nonce();
+      let mut classCursor = Self::classCursor();
 
       //Get creation time
       let now = <timestamp::Module<T>>::get();
@@ -114,15 +114,15 @@ decl_module! {
 
       //Transfer payment for creation    
 
-      //Save BnftClass, remaining supply, nonce
-      <BnftClasses<T>>::insert(nonce, bnft_class.clone());
-      <RemainingBnftsForClass<T>>::insert(nonce, total_supply);
+      //Save BnftClass, remaining supply, classCursor
+      <BnftClasses<T>>::insert(classCursor, bnft_class.clone());
+      <RemainingBnftsForClass<T>>::insert(classCursor, total_supply);
 
       //Emit event
-      Self::deposit_event(RawEvent::BnftClassCreated(nonce, bnft_class));
+      Self::deposit_event(RawEvent::BnftClassCreated(classCursor, bnft_class));
 
-      //Increment nonce
-      nonce = nonce.wrapping_add(1);
+      //Increment classCursor
+      classCursor = classCursor.wrapping_add(1);
       <ClassCursor<T>>::put(classCursor);
 
       Ok(())
@@ -139,7 +139,7 @@ decl_module! {
       ensure!(class_index < classCursor, "BNFT Class does not exist!"); 
 
       // Ensure uri is unique
-      ensure!(!<Bnfts<T>>::exists(&uri, &class_index), "Bnft already issued");
+      ensure!(!<Bnfts<T>>::exists((uri.clone(), class_index.clone())), "Bnft already issued");
 
       // Ensure beneficiary has correct credential
 
@@ -152,14 +152,26 @@ decl_module! {
       // Create bnft
       let bnft = Bnft {
         uri: uri.clone(),
-        class_index,
+        class_index: class_index.clone(),
         verified: false,
       };
 
-      // Save bnft, assign to owner, decrement remaining supply
-      <Bnfts<T>>::insert((uri.clone(), class_index.clone()), bnft.clone());
-      <BnftIdByOwner<T>>::insert(sender.clone(), uri.clone());
+      // Update Bnft storage
+      let mut bnftCursor = Self::bnftCursor();
+      let uriClassIndexTuple = (uri, class_index);
+      <Bnfts<T>>::insert(&uriClassIndexTuple, &bnft);
+      <BnftIndex<T>>::insert(&uriClassIndexTuple, &bnftCursor);
+        
+      //Update owner storage
+      <BnftOwner<T>>::insert(&uriClassIndexTuple, sender.clone());
+      <OwnedBnftsArray<T>>::insert(bnftCursor, &sender);
+
+      //Decrement remaining Bnfts for class
       <RemainingBnftsForClass<T>>::insert(class_index, remainingBnftsForClass.clone() - 1);
+
+      //Increment bnftCursor
+      let bnftCursor = bnftCursor.wrapping_add(1);
+      <BnftCursor<T>>::put(bnftCursor);
 
       // Emit event
       Self::deposit_event(RawEvent::BnftIssued(sender, bnft));
@@ -167,36 +179,36 @@ decl_module! {
       Ok(())
     }
 
-    fn verifyAndBurn(origin,
-                     agent: T::AccountId
-                     class_index: u32,
-                     uri: T::AccountId,) -> Result {
-      //Ensure signed
-      let sender = ensure_signed(origin)?;
+    // fn verifyAndBurn(origin,
+    //                  agent: T::AccountId
+    //                  class_index: u32,
+    //                  uri: T::AccountId,) -> Result {
+    //   //Ensure signed
+    //   let sender = ensure_signed(origin)?;
 
-      //Ensure BNFT exists
-      ensure!(<Bnfts<T>>::exists(&uri), "Bnft does not exist or is already verified");
+    //   //Ensure BNFT exists
+    //   ensure!(<Bnfts<T>>::exists(&uri), "Bnft does not exist or is already verified");
 
-      //Ensure Agent owns BNFT
-      let bnft = Self::get_verified_bnft(&uri).ok_or("Bnft not found")?;
-      ensure!(bnft.
+    //   //Ensure Agent owns BNFT
+    //   let bnft = Self::get_verified_bnft(&uri).ok_or("Bnft not found")?;
+    //   ensure!(bnft.
 
-      //Verify verifier has required credential
+    //   //Verify verifier has required credential
 
-      //Verify BNFT (Move to verified bnfts)
+    //   //Verify BNFT (Move to verified bnfts)
 
-      //Remove from Owned BNFTs
+    //   //Remove from Owned BNFTs
 
-      //Remove from Bnfts
+    //   //Remove from Bnfts
 
-      //Release stake back to agent
+    //   //Release stake back to agent
 
-      //Award bounty to agent
+    //   //Award bounty to agent
 
-      //Emit events
+    //   //Emit events
 
-      Ok(())
-    }
+    //   Ok(())
+    // }
   } 
 }
 
