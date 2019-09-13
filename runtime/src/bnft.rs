@@ -36,7 +36,8 @@ pub struct Bnft<AccountId> {
 
 decl_storage! {
   trait Store for Module<T: Trait> as Bnft {
-    Nonce get(nonce): u64; 
+    ClassCursor get(classCursor): u32; 
+    BnftCuror get(bnftCursor): u32;  
     BnftClasses get(get_bnft_class): map u32 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
     RemainingBnftsForClass get(remaining_bnfts_for): map u32 => u32;
 
@@ -118,7 +119,7 @@ decl_module! {
 
       //Increment nonce
       nonce = nonce.wrapping_add(1);
-      <Nonce<T>>::put(nonce);
+      <ClassCursor<T>>::put(classCursor);
 
       Ok(())
     }
@@ -130,11 +131,11 @@ decl_module! {
       let sender = ensure_signed(origin)?;
 
       //Ensure bnft class exists
-      let nonce = Self::nonce();
-      ensure!(class_index < nonce, "BNFT Class does not exist!"); 
+      let classCursor = Self::classCursor();
+      ensure!(class_index < classCursor, "BNFT Class does not exist!"); 
 
       // Ensure uri is unique
-      ensure!(!<Bnfts<T>>::exists(&uri), "Bnft already issued");
+      ensure!(!<Bnfts<T>>::exists(&uri, &class_index), "Bnft already issued");
 
       // Ensure beneficiary has correct credential
 
@@ -152,7 +153,7 @@ decl_module! {
       };
 
       // Save bnft, assign to owner, decrement remaining supply
-      <Bnfts<T>>::insert(uri.clone(), bnft.clone());
+      <Bnfts<T>>::insert((uri.clone(), class_index.clone()), bnft.clone());
       <BnftIdByOwner<T>>::insert(sender.clone(), uri.clone());
       <RemainingBnftsForClass<T>>::insert(class_index, remainingBnftsForClass.clone() - 1);
 
