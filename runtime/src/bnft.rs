@@ -36,18 +36,22 @@ pub struct Bnft<AccountId> {
 
 decl_storage! {
   trait Store for Module<T: Trait> as Bnft {
+    //Current index for Bnft Classes & Bnfts
     ClassCursor get(classCursor): u32; 
     BnftCuror get(bnftCursor): u32;  
+
+    //Bnft Class storage
     BnftClasses get(get_bnft_class): map u32 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
     RemainingBnftsForClass get(remaining_bnfts_for): map u32 => u32;
 
+    //Issued Bnft Storage
     Bnfts get(get_bnft): map (T::AccountId, u32) => Bnft<T::AccountId>; 
     BnftIndex get(index_for): map (T::AccountId, u32) => u32
+    VerifiedBnfts get(get_verified_bnft): map T::AccountId => Bnft<T::AccountId>;
 
+    //Owner storage
     BnftOwner get(owner_of): map (T::AccountId, u32) => Option<T::AccountId>;    
     OwnedBnftsArray get(owner_by_index): map u32 => AccountId;
-
-    VerifiedBnfts get(get_verified_bnft): map T::AccountId => Bnft<T::AccountId>;
   }
 }
 
