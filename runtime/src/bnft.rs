@@ -138,7 +138,7 @@ decl_module! {
       ensure!(class_index < classCursor, "BNFT Class does not exist!"); 
 
       // Ensure uri is unique
-      let uriClassIndexTuple = (uri, class_index);
+      let uriClassIndexTuple = (uri.clone(), class_index);
       ensure!(!<Bnfts<T>>::exists(&uriClassIndexTuple), "Bnft already issued");
 
       // Ensure beneficiary has correct credential
@@ -159,19 +159,15 @@ decl_module! {
       // Update Bnft storage
       <Bnfts<T>>::insert(&uriClassIndexTuple, &bnft);
         
-      //Update owner storage
+      //Update Bnft storage
       <BnftOwner<T>>::insert(&uriClassIndexTuple, sender.clone());
       let bnftCount = Self::bnft_count_for(&sender).wrapping_add(1);
       <OwnedBnftsCount<T>>::insert(&sender, &bnftCount);
-      let accountIdBnftIndexTuple = (&sender, &bnftCount);
-      <OwnedBnftsArray<T>>::insert(accountIdBnftIndexTuple, &uriClassIndexTuple);
+      let accountIdBnftIndexTuple = (sender.clone(), bnftCount.clone());
+      <OwnedBnftsArray<T>>::insert(accountIdBnftIndexTuple, uriClassIndexTuple.clone());
 
       //Decrement remaining Bnfts for class
       <RemainingBnftsForClass<T>>::insert(class_index, remainingBnftsForClass.clone() - 1);
-
-      //Increment bnftCursor
-      let bnftCursor = bnftCursor.wrapping_add(1);
-      <BnftCursor<T>>::put(bnftCursor);
 
       // Emit event
       Self::deposit_event(RawEvent::BnftIssued(sender, bnft));
