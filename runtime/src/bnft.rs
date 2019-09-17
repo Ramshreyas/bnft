@@ -38,7 +38,7 @@ decl_storage! {
   trait Store for Module<T: Trait> as Bnft {
     //Current index for Bnft Classes & Bnfts
     ClassCursor get(classCursor): u32;
-    BnftCursur get(bnftCursor): u32;
+    BnftCursor get(bnftCursor): u32;
 
     //Bnft Class storage
     BnftClasses get(get_bnft_class): map u32 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
@@ -46,7 +46,7 @@ decl_storage! {
 
     //Issued Bnft Storage
     Bnfts get(get_bnft): map (T::AccountId, u32) => Bnft<T::AccountId>; 
-    BnftIndex get(get_bnft_for): map (T::AccountId, u32) => u32;
+    BnftIndex get(get_bnft_index_for): map (T::AccountId, u32) => u32;
     VerifiedBnfts get(get_verified_bnft): map T::AccountId => Bnft<T::AccountId>;
 
     //Owner storage
@@ -159,10 +159,10 @@ decl_module! {
       };
 
       // Update Bnft storage
-      let bnftCursor = Self::bnftCursor();
+      let mut bnftCursor = Self::bnftCursor();
       let accountIdBnftIndexTuple = (sender.clone(), bnftCursor.clone()); 
       <Bnfts<T>>::insert(&uriClassIndexTuple, &bnft);
-      <BnftIndex<T>>::insert(&accountIdBnftIndexTuple, &bnftCursor);
+      <BnftIndex<T>>::insert(&uriClassIndexTuple, &bnftCursor);
       
       //Update Bnft storage
       let bnftCount = Self::bnft_count_for(&sender).wrapping_add(1);
@@ -171,7 +171,7 @@ decl_module! {
       <OwnedBnftsArray<T>>::insert(accountIdBnftIndexTuple, uriClassIndexTuple.clone());
 
       //Increment BnftCursor
-      <BnftCursor<T>>:put(bnftCursor.wrapping_add(1));
+      <BnftCursor<T>>::put(bnftCursor.wrapping_add(1));
 
       //Decrement remaining Bnfts for class
       <RemainingBnftsForClass<T>>::insert(class_index, remainingBnftsForClass.clone() - 1);
@@ -220,8 +220,8 @@ decl_module! {
     // }
   }
 
-  impl<T: Trait> Module<T> {
-    fn findAndRemove(
-  }
+  // impl<T: Trait> Module<T> {
+  //   fn findAndRemove(
+  // }
 }
 
