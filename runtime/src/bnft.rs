@@ -65,6 +65,7 @@ decl_event! {
   {
     BnftClassCreated(u32, BnftClass<Hash, Balance, Moment, AccountId>),
     BnftIssued(AccountId, Bnft<AccountId>),  
+    BnftVerified(AccountId, AccountId, Bnft<AccountId>),
   }
 }
 
@@ -123,7 +124,7 @@ decl_module! {
       Self::deposit_event(RawEvent::BnftClassCreated(classCursor, bnft_class));
 
       //Increment classCursor
-      classCursor = classCursor.wrapping_add(1);
+      let classCursor = classCursor.wrapping_add(1);
       <ClassCursor<T>>::put(classCursor);
 
       Ok(())
@@ -182,46 +183,48 @@ decl_module! {
       Ok(())
     }
 
-    // fn verifyAndBurn(origin,
-    //                  agent: T::AccountId
-    //                  class_index: u32,
-    //                  uri: T::AccountId,) -> Result {
-    //   //Ensure signed
-    //   let sender = ensure_signed(origin)?;
+    fn verifyAndBurn(origin,
+                     agent: T::AccountId,
+                     class_index: u32,
+                     uri: T::AccountId) -> Result {
+      //Ensure signed
+      let sender = ensure_signed(origin)?;
 
-    //   //Ensure BNFT exists
-    //   let uriClassIndexTuple = (uri, class_index);
-    //   ensure!(<Bnfts<T>>::exists(&uriClassIndexTuple), "Bnft does not exist or is already verified");
+      //Ensure BNFT exists
+      let uriClassIndexTuple = (uri.clone(), class_index);
+      ensure!(<Bnfts<T>>::exists(uriClassIndexTuple.clone()), "Bnft does not exist or is already verified");
 
-    //   //Ensure Agent owns BNFT
-    //   ensure!(Self::owner_of(uriClassIndexTuple).unwrap() == agent, "Agent does not own BNFT");   
+      //Ensure Agent owns BNFT
+      ensure!(Self::owner_of(uriClassIndexTuple.clone()).unwrap() == agent, "Agent does not own BNFT");   
 
-    //   //Verify verifier has required credential
+      //Verify verifier has required credential
       
-    //   //Remove from Bnfts
-    //   let mut bnft = <Bnft<T>>::get_bnft(uriClassIndexTuple.clone());
-    //   <Bnft<T>>::remove(uriClassIndexTuple.clone());
+      //Remove from Bnfts
+      let mut bnft = Self::get_bnft(uriClassIndexTuple.clone());
+      <Bnfts<T>>::remove(uriClassIndexTuple.clone());
 
-    //   //Verify BNFT (Move to verified bnfts)
-    //   let bnft.verified = true;
-    //   <VerifiedBnfts<T>>::insert(uri.clone(), bnft);
+      //Verify BNFT (Move to verified bnfts)
+      bnft.verified = true;
+      <VerifiedBnfts<T>>::insert(uri.clone(), &bnft);
 
-    //   //Remove from Owned BNFTs
-    //   <BnftOwner<T>>::remove(uriClassIndexTuple.clone());
+      //Remove from Owned BNFTs
+      let bnftIndex = Self::get_bnft_index_for(uriClassIndexTuple.clone());
+      <BnftOwner<T>>::remove(uriClassIndexTuple.clone());
+      <OwnedBnftsArray<T>>::remove((agent.clone(), bnftIndex));
       
+      //Decrement Owned Bnft count
+      let mut ownedBnftsCount = Self::bnft_count_for(&agent);
+      <OwnedBnftsCount<T>>::insert(&agent, ownedBnftsCount.saturating_sub(1));
 
-    //   //Release stake back to agent
+      //Release stake back to agent
 
-    //   //Award bounty to agent
+      //Award bounty to agent
 
-    //   //Emit events
+      //Emit events
+      Self::deposit_event(RawEvent::BnftVerified(sender, agent, bnft));
 
-    //   Ok(())
-    // }
+      Ok(())
+    }
   }
-
-  // impl<T: Trait> Module<T> {
-  //   fn findAndRemove(
-  // }
 }
 
