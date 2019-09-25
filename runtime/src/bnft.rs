@@ -4,8 +4,9 @@ use support::traits::{Currency, WithdrawReason, ExistenceRequirement};
 use runtime_primitives::traits::{Zero, Hash, Saturating, As, CheckedAdd, CheckedMul, CheckedDiv};
 use {system::ensure_signed, timestamp};
 use rstd::prelude::*;
+use crate::token;
 
-pub trait Trait: balances::Trait + timestamp::Trait {
+pub trait Trait: balances::Trait + timestamp::Trait + token::Trait {
   type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
@@ -36,12 +37,17 @@ pub struct Bnft<AccountId> {
 
 decl_storage! {
   trait Store for Module<T: Trait> as Bnft {
+    // stores the owner in the genesis config
+    Owner get(owner) config(): T::AccountId;
+    // stores a list of admins who can set config
+    Admins get(admins): map T::AccountId => bool;
+
     //Current index for Bnft Classes & Bnfts
     ClassCursor get(classCursor): u32;
     BnftCursor get(bnftCursor): u32;
 
     //Bnft Class storage
-    BnftClasses get(get_bnft_class): map u32 => BnftClass<T::Hash, T::Balance, T::Moment, T::AccountId>;
+    BnftClasses get(get_bnft_class): map u32 => BnftClass<T::Hash, T::TokenBalance, T::Moment, T::AccountId>;
     RemainingBnftsForClass get(remaining_bnfts_for): map u32 => u32;
 
     //Issued Bnft Storage
@@ -59,7 +65,7 @@ decl_storage! {
 decl_event! {
   pub enum Event<T> where 
     AccountId = <T as system::Trait>::AccountId, 
-    Balance = <T as balances::Trait>::Balance,
+    Balance = <T as token::Trait>::TokenBalance,
     Hash = <T as system::Trait>::Hash,
     Moment = <T as timestamp::Trait>::Moment,
   {
@@ -73,14 +79,21 @@ decl_module! {
   pub struct Module<T: Trait> for enum Call where origin: T::Origin {
     fn deposit_event<T>() = default;
 
+    fn init(origin) {
+      let sender = ensure_signed(origin)?;
+      ensure!(sender == Self::owner(), "Only the owner set in genesis config can initialize the TCR");
+      <token::Module<T>>::init(sender.clone())?;
+      <Admins<T>>::insert(sender, true);
+    }
+
     fn create_bnft_class(origin, 
                          name: T::Hash, 
                          total_supply: u32,
                          beneficiary_credential: T::Hash,
                          verifier_credential: T::Hash,
-                         transfer_bounty: T::Balance,
-                         verification_bounty: T::Balance,
-                         stake: T::Balance,
+                         transfer_bounty: T::TokenBalance,
+                         verification_bounty: T::TokenBalance,
+                         stake: T::TokenBalance,
                          validity: T::Moment,
                          description: T::Hash,
                          ricardian_contract: T::Hash) -> Result {
@@ -150,7 +163,9 @@ decl_module! {
       let remainingBnftsForClass = Self::remaining_bnfts_for(class_index);
       ensure!(remainingBnftsForClass > 0, "All BNFTs have been issued for this class");
 
-      // Transfer stake
+      // Lock stake
+      let bnftClass = Self::get_bnft_class(class_index);
+      <token::Module<T>>::lock(sender.clone(), bnftClass.stake, uriClassIndexTuple.clone())?;
 
       // Create bnft
       let bnft = Bnft {
@@ -216,9 +231,11 @@ decl_module! {
       let mut ownedBnftsCount = Self::bnft_count_for(&agent);
       <OwnedBnftsCount<T>>::insert(&agent, ownedBnftsCount.saturating_sub(1));
 
-      //Release stake back to agent
+      //Calculate bounty
 
-      //Award bounty to agent
+      //Release stake + add bounty back to agent
+      let bnftClass = Self::get_bnft_class(class_index); 
+      <token::Module<T>>::unlock(agent.clone(), bnftClass.stake, uriClassIndexTuple.clone());
 
       //Emit events
       Self::deposit_event(RawEvent::BnftVerified(sender, agent, bnft));

@@ -1,7 +1,7 @@
 use primitives::{ed25519, sr25519, Pair};
 use bnft_runtime::{
 	AccountId, GenesisConfig, ConsensusConfig, TimestampConfig, BalancesConfig,
-	SudoConfig, IndicesConfig,
+	SudoConfig, IndicesConfig, TokenConfig, BnftConfig,
 };
 use substrate_service;
 
@@ -92,28 +92,35 @@ impl Alternative {
 
 fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<AccountId>, root_key: AccountId) -> GenesisConfig {
 	GenesisConfig {
-		consensus: Some(ConsensusConfig {
-			code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/bnft_runtime_wasm.compact.wasm").to_vec(),
-			authorities: initial_authorities.clone(),
-		}),
-		system: None,
-		timestamp: Some(TimestampConfig {
-			minimum_period: 5, // 10 second block time.
-		}),
-		indices: Some(IndicesConfig {
-			ids: endowed_accounts.clone(),
-		}),
-		balances: Some(BalancesConfig {
-			transaction_base_fee: 1,
-			transaction_byte_fee: 0,
-			existential_deposit: 500,
-			transfer_fee: 0,
-			creation_fee: 0,
-			balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
-			vesting: vec![],
-		}),
-		sudo: Some(SudoConfig {
-			key: root_key,
-		}),
+	    consensus: Some(ConsensusConfig {
+		code: include_bytes!("../runtime/wasm/target/wasm32-unknown-unknown/release/bnft_runtime_wasm.compact.wasm").to_vec(),
+		authorities: initial_authorities.clone(),
+	    }),
+	    system: None,
+	    timestamp: Some(TimestampConfig {
+		minimum_period: 5, // 10 second block time.
+	    }),
+	    indices: Some(IndicesConfig {
+		ids: endowed_accounts.clone(),
+	    }),
+	    balances: Some(BalancesConfig {
+		transaction_base_fee: 1,
+		transaction_byte_fee: 0,
+		existential_deposit: 500,
+		transfer_fee: 0,
+		creation_fee: 0,
+		balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
+		vesting: vec![],
+	    }),
+	    sudo: Some(SudoConfig {
+		key: root_key,
+	    }),
+            token: Some(TokenConfig {
+                // setting total supply of tokens to 21M because `Satoshi` said so
+                total_supply: 21000000,
+            }),
+            bnft: Some(BnftConfig {
+                owner: account_key("Alice"),
+            }),
 	}
 }

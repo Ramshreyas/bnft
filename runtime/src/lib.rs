@@ -55,7 +55,10 @@ pub type BlockNumber = u64;
 /// Index of an account's extrinsic in the chain.
 pub type Nonce = u64;
 
-/// Used for the module template in `./template.rs`
+/// ERC20 accounting token for stakes and rewards
+mod token;
+
+/// Business Logic
 mod bnft;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
@@ -187,6 +190,11 @@ impl sudo::Trait for Runtime {
 	type Proposal = Call;
 }
 
+impl token::Trait for Runtime {
+    type Event = Event;
+    type TokenBalance = u128;
+}
+
 impl bnft::Trait for Runtime {
     type Event = Event;
 }
@@ -197,15 +205,16 @@ construct_runtime!(
 		NodeBlock = opaque::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
-		System: system::{default, Log(ChangesTrieRoot)},
-		Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
-		Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
-		Aura: aura::{Module},
-		Indices: indices,
-		Balances: balances,
-		Sudo: sudo,
-		// Add the custom module here
-		Bnft: bnft::{Module, Call, Storage, Event<T>},
+	    System: system::{default, Log(ChangesTrieRoot)},
+	    Timestamp: timestamp::{Module, Call, Storage, Config<T>, Inherent},
+	    Consensus: consensus::{Module, Call, Storage, Config<T>, Log(AuthoritiesChange), Inherent},
+	    Aura: aura::{Module},
+	    Indices: indices,
+	    Balances: balances,
+	    Sudo: sudo,
+	    // Add the custom module here
+	    Bnft: bnft::{Module, Call, Storage, Event<T>, Config<T>},
+            Token: token::{Module, Call, Storage, Event<T>, Config<T>},
 	}
 );
 
