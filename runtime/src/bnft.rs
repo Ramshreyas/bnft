@@ -14,7 +14,7 @@ pub trait Trait: balances::Trait + timestamp::Trait + token::Trait {
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 pub struct BnftClass<Hash, Balance, Moment, AccountId> {
   name: Hash,
-  total_supply: u32,
+  total_supply: Balance,
   beneficiary_credential: Hash,
   verifier_credential: Hash,
   transfer_bounty: Balance,
@@ -25,6 +25,8 @@ pub struct BnftClass<Hash, Balance, Moment, AccountId> {
   ricardian_contract: Hash,
   creator: AccountId,
   created_on: Moment,
+  funded: bool,
+  funded_on: Option<Moment>,
 }
 
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -48,7 +50,7 @@ decl_storage! {
 
     //Bnft Class storage
     BnftClasses get(get_bnft_class): map u32 => BnftClass<T::Hash, T::TokenBalance, T::Moment, T::AccountId>;
-    RemainingBnftsForClass get(remaining_bnfts_for): map u32 => u32;
+    RemainingBnftsForClass get(remaining_bnfts_for): map u32 => u64;
 
     //Issued Bnft Storage
     Bnfts get(get_bnft): map (T::AccountId, u32) => Bnft<T::AccountId>; 
@@ -88,12 +90,12 @@ decl_module! {
 
     fn create_bnft_class(origin, 
                          name: T::Hash, 
-                         total_supply: u32,
+                         total_supply: u64,
                          beneficiary_credential: T::Hash,
                          verifier_credential: T::Hash,
-                         transfer_bounty: T::TokenBalance,
-                         verification_bounty: T::TokenBalance,
-                         stake: T::TokenBalance,
+                         transfer_bounty: u64,
+                         verification_bounty: u64,
+                         stake: u64,
                          validity: T::Moment,
                          description: T::Hash,
                          ricardian_contract: T::Hash) -> Result {
@@ -114,17 +116,19 @@ decl_module! {
       //Create struct
       let bnft_class = BnftClass {
         name: name.clone(),
-        total_supply: total_supply.clone(),
+        total_supply: <T::TokenBalance as As<u64>>::sa(total_supply),
         beneficiary_credential,
         verifier_credential,
-        transfer_bounty,
-        verification_bounty,
-        stake,
+        transfer_bounty: <T::TokenBalance as As<u64>>::sa(transfer_bounty),
+        verification_bounty: <T::TokenBalance as As<u64>>::sa(verification_bounty),
+        stake: <T::TokenBalance as As<u64>>::sa(stake),
         expiry,
         description,
         ricardian_contract,
         creator: sender.clone(),
-        created_on: now,
+        created_on: now.clone(),
+        funded: false,
+        funded_on: None,
       };
 
       //Transfer payment for creation    
@@ -139,6 +143,34 @@ decl_module! {
       //Increment classCursor
       let classCursor = classCursor.wrapping_add(1);
       <ClassCursor<T>>::put(classCursor);
+
+      Ok(())
+    }
+
+    fn fund_bnft_class(origin,
+                       class_index: u32) -> Result {
+      //Ensure Signed
+      let sender = ensure_signed(origin)?;
+
+      //Ensure bnft class exists
+      let classCursor = Self::classCursor();
+      ensure!(class_index < classCursor, "BNFT Class does not exist!"); 
+
+      //Ensure not funded already
+      let mut bnftClass = Self::get_bnft_class(class_index);
+      ensure!(!bnftClass.funded, "BNFT Class is already funded");
+
+      //Ensure not expired
+
+      //Transfer funds
+      let amount = bnftClass.transfer_bounty.checked_mul(&bnftClass.total_supply).ok_or("Overflow!");
+      <token::Module<T>>::lock(sender.clone(), amount.unwrap(), (sender.clone(), class_index))?;
+
+      //Update storage
+      bnftClass.funded = true;
+      <BnftClasses<T>>::insert(class_index, bnftClass.clone());
+
+      //Emit event
 
       Ok(())
     }
