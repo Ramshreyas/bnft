@@ -163,9 +163,9 @@ decl_module! {
       //Ensure not expired
 
       //Transfer funds
-      let amount = bnftClass.transfer_bounty.checked_mul(&bnftClass.total_supply).ok_or("Overflow!");
-      <token::Module<T>>::lock(sender.clone(), amount.unwrap(), (sender.clone(), class_index))?;
-
+      // let amount = bnftClass.transfer_bounty.checked_mul(&bnftClass.total_supply).ok_or("Overflow")?;
+      <token::Module<T>>::lock(sender.clone(), bnftClass.transfer_bounty, (sender.clone(), class_index));
+            
       //Update storage
       bnftClass.funded = true;
       <BnftClasses<T>>::insert(class_index, bnftClass.clone());
