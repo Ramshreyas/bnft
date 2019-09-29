@@ -173,8 +173,11 @@ decl_module! {
 
       //Transfer funds
       let transfer_bounty = bnftClass.transfer_bounty;
+      let verification_bounty = bnftClass.verification_bounty;
       let total_supply = bnftClass.total_supply;
-      let amount = transfer_bounty.checked_mul(&total_supply).ok_or("Overflow")?;
+      let total_transfer_bounty = transfer_bounty.checked_mul(&total_supply).ok_or("Overflow")?;
+      let total_verification_bounty = verification_bounty.checked_mul(&total_supply).ok_or("Overflow")?;
+      let amount = total_transfer_bounty.checked_add(&total_verification_bounty).ok_or("Overflow")?;
       <token::Module<T>>::lock(sender.clone(), amount, (sender.clone(), class_index));
             
       //Update storage
@@ -283,9 +286,10 @@ decl_module! {
       let bnftClass = Self::get_bnft_class(class_index);
       <token::Module<T>>::unlock(agent.clone(), bnftClass.stake, uriClassIndexTuple.clone()); 
 
-      //Transfer bounty to agent
+      //Transfer bounty to agent and verifier
       let funder = Self::funder_of(class_index);
       <token::Module<T>>::unlock(agent.clone(), bnftClass.transfer_bounty, (funder.clone(), class_index));
+      <token::Module<T>>::unlock(sender.clone(), bnftClass.verification_bounty, (funder.clone(), class_index));
 
       //Emit events
       Self::deposit_event(RawEvent::BnftVerified(sender, agent, bnft));
