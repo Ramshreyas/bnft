@@ -116,8 +116,8 @@ fn testnet_genesis(initial_authorities: Vec<AuthorityId>, endowed_accounts: Vec<
 		key: root_key,
 	    }),
             token: Some(TokenConfig {
-                // setting total supply of tokens to 21M because `Satoshi` said so
-                total_supply: 21000000,
+                // setting total supply of tokens to 21B
+                total_supply: 21000000000,
             }),
             bnft: Some(BnftConfig {
                 owner: account_key("Alice"),

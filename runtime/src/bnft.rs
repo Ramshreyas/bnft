@@ -27,6 +27,7 @@ pub struct BnftClass<Hash, Balance, Moment, AccountId> {
   created_on: Moment,
   funded: bool,
   funded_on: Option<Moment>,
+  funding_period: Moment,
 }
 
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -39,9 +40,8 @@ pub struct Bnft<AccountId> {
 
 decl_storage! {
   trait Store for Module<T: Trait> as Bnft {
-    // stores the owner in the genesis config
+    // stores the owner and admins in the genesis config and after init()
     Owner get(owner) config(): T::AccountId;
-    // stores a list of admins who can set config
     Admins get(admins): map T::AccountId => bool;
 
     //Current index for Bnft Classes & Bnfts
@@ -57,10 +57,13 @@ decl_storage! {
     BnftIndex get(get_bnft_index_for): map (T::AccountId, u32) => u32;
     VerifiedBnfts get(get_verified_bnft): map T::AccountId => Bnft<T::AccountId>;
 
-    //Owner storage
+    //Agent ownership storage
     BnftOwner get(owner_of): map (T::AccountId, u32) => Option<T::AccountId>;    
     OwnedBnftsCount get(bnft_count_for): map T::AccountId => u32;
     OwnedBnftsArray get(get_bnft_for): map (T::AccountId, u32) => (T::AccountId, u32);
+
+    //Funders storage
+    BnftClassFunder get(funder_of): map u32 => T::AccountId;
   }
 }
 
@@ -72,6 +75,7 @@ decl_event! {
     Moment = <T as timestamp::Trait>::Moment,
   {
     BnftClassCreated(u32, BnftClass<Hash, Balance, Moment, AccountId>),
+    BnftClassFunded(u32, AccountId, BnftClass<Hash, Balance, Moment, AccountId>),
     BnftIssued(AccountId, Bnft<AccountId>),  
     BnftVerified(AccountId, AccountId, Bnft<AccountId>),
   }
@@ -98,7 +102,8 @@ decl_module! {
                          stake: u64,
                          validity: T::Moment,
                          description: T::Hash,
-                         ricardian_contract: T::Hash) -> Result {
+                         ricardian_contract: T::Hash,
+                         funding_period: T::Moment) -> Result {
       //Ensure signed
       let sender = ensure_signed(origin)?;
 
@@ -129,6 +134,7 @@ decl_module! {
         created_on: now.clone(),
         funded: false,
         funded_on: None,
+        funding_period,
       };
 
       //Transfer payment for creation    
@@ -161,16 +167,23 @@ decl_module! {
       ensure!(!bnftClass.funded, "BNFT Class is already funded");
 
       //Ensure not expired
+      let now = <timestamp::Module<T>>::get();
+      let fundingDeadline = bnftClass.created_on.checked_add(&bnftClass.funding_period).ok_or("Error!")?;
+      ensure!(fundingDeadline > now, "BnftClass has expired!");
 
       //Transfer funds
-      // let amount = bnftClass.transfer_bounty.checked_mul(&bnftClass.total_supply).ok_or("Overflow")?;
-      <token::Module<T>>::lock(sender.clone(), bnftClass.transfer_bounty, (sender.clone(), class_index));
+      let transfer_bounty = bnftClass.transfer_bounty;
+      let total_supply = bnftClass.total_supply;
+      let amount = transfer_bounty.checked_mul(&total_supply).ok_or("Overflow")?;
+      <token::Module<T>>::lock(sender.clone(), amount, (sender.clone(), class_index));
             
       //Update storage
       bnftClass.funded = true;
       <BnftClasses<T>>::insert(class_index, bnftClass.clone());
+      <BnftClassFunder<T>>::insert(class_index, sender.clone());
 
       //Emit event
+      Self::deposit_event(RawEvent::BnftClassFunded(class_index, sender, bnftClass));
 
       Ok(())
     }
@@ -185,6 +198,10 @@ decl_module! {
       let classCursor = Self::classCursor();
       ensure!(class_index < classCursor, "BNFT Class does not exist!"); 
 
+      //Ensure BnftClass is funded
+      let bnftClass = Self::get_bnft_class(class_index);
+      ensure!(bnftClass.funded, "BNFT class is not yet funded!");
+
       // Ensure uri is unique
       let uriClassIndexTuple = (uri.clone(), class_index);
       ensure!(!<Bnfts<T>>::exists(&uriClassIndexTuple), "Bnft already issued");
@@ -196,7 +213,6 @@ decl_module! {
       ensure!(remainingBnftsForClass > 0, "All BNFTs have been issued for this class");
 
       // Lock stake
-      let bnftClass = Self::get_bnft_class(class_index);
       <token::Module<T>>::lock(sender.clone(), bnftClass.stake, uriClassIndexTuple.clone())?;
 
       // Create bnft
@@ -263,11 +279,13 @@ decl_module! {
       let mut ownedBnftsCount = Self::bnft_count_for(&agent);
       <OwnedBnftsCount<T>>::insert(&agent, ownedBnftsCount.saturating_sub(1));
 
-      //Calculate bounty
+      //Release stake
+      let bnftClass = Self::get_bnft_class(class_index);
+      <token::Module<T>>::unlock(agent.clone(), bnftClass.stake, uriClassIndexTuple.clone()); 
 
-      //Release stake + add bounty back to agent
-      let bnftClass = Self::get_bnft_class(class_index); 
-      <token::Module<T>>::unlock(agent.clone(), bnftClass.stake, uriClassIndexTuple.clone());
+      //Transfer bounty to agent
+      let funder = Self::funder_of(class_index);
+      <token::Module<T>>::unlock(agent.clone(), bnftClass.transfer_bounty, (funder.clone(), class_index));
 
       //Emit events
       Self::deposit_event(RawEvent::BnftVerified(sender, agent, bnft));
