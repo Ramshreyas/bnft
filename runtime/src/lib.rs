@@ -58,6 +58,9 @@ pub type Nonce = u64;
 /// ERC20 accounting token for stakes and rewards
 mod token;
 
+/// ERC734/735 identity system
+mod identity;
+
 /// Business Logic
 mod bnft;
 
@@ -195,6 +198,8 @@ impl token::Trait for Runtime {
     type TokenBalance = u128;
 }
 
+impl identity::Trait for Runtime {}
+
 impl bnft::Trait for Runtime {
     type Event = Event;
 }
@@ -215,6 +220,7 @@ construct_runtime!(
 	    // Add the custom module here
 	    Bnft: bnft::{Module, Call, Storage, Event<T>, Config<T>},
             Token: token::{Module, Call, Storage, Event<T>, Config<T>},
+            Identity: identity::{Module, Call, Storage},
 	}
 );
 
