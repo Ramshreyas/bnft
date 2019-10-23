@@ -54,7 +54,7 @@ decl_module! {
         fn addKey(origin, toAccount: T::AccountId, _key: T::AccountId, _purpose: u16, _keyType: u16) -> Result {
             let sender = ensure_signed(origin)?;
 
-            //Check if sender has management purpose for toAccount or is same as toAccount
+            //Check if sender has management clearance
             if(sender.clone() != toAccount.clone()) {
                 ensure!(Self::keyHasPurpose(toAccount.clone(), sender, 1), "You are not authorized to do this.");
             }
@@ -63,23 +63,41 @@ decl_module! {
             let keyTuple = (toAccount.clone(), _key.clone());
             ensure!(!<Keys<T>>::exists(keyTuple), "Key already exists - change purpose?");
 
-            // //Add key
+            //Add key
             let key = Key {
                 key: _key.clone(),
-                purpose: _purpose,
+                purpose: _purpose.clone(),
                 keyType: _keyType,
             };
-
-            <Keys<T>>::insert((toAccount, _key), key); 
+            <Keys<T>>::insert((toAccount.clone(), _key.clone()), key.clone()); 
+            
+            //Insert Keys by purpose
+            let purposeTuple = (toAccount.clone(), _purpose.clone());
+            let mut keyVector = Self::getKeyForPurpose(purposeTuple.clone());
+            keyVector.push(_key.clone());
+            <KeysByPurpose<T>>::insert(purposeTuple, keyVector);
 
             //Emit event
 
             Ok(())
         }
 
-        fn removeKey(origin, key: Vec<u8>, purpose: u16) -> Result {
+        fn removeKey(origin, _key: T::AccountId, _purpose: u16) -> Result {
             let sender = ensure_signed(origin)?;
 
+            //Ensure key exists
+            let keyTuple = (sender.clone(), _key.clone());
+            ensure!(!<Keys<T>>::exists(keyTuple), "Key already exists - change purpose?");
+           
+            //Ensure key has same purpose
+            //Is this necessary?//
+
+            //Remove key
+            
+
+            //Emit event
+            //TODO
+            
             Ok(())
         }
 
