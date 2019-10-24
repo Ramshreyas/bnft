@@ -198,7 +198,9 @@ impl token::Trait for Runtime {
     type TokenBalance = u128;
 }
 
-impl identity::Trait for Runtime {}
+impl identity::Trait for Runtime {
+    type Event = Event;
+}
 
 impl bnft::Trait for Runtime {
     type Event = Event;
@@ -220,7 +222,7 @@ construct_runtime!(
 	    // Add the custom module here
 	    Bnft: bnft::{Module, Call, Storage, Event<T>, Config<T>},
             Token: token::{Module, Call, Storage, Event<T>, Config<T>},
-            Identity: identity::{Module, Call, Storage},
+            Identity: identity::{Module, Call, Storage, Event<T>},
 	}
 );
 

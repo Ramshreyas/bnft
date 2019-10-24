@@ -8,7 +8,7 @@ use runtime_io::keccak_256;
 use crate::token;
 
 pub trait Trait: balances::Trait + timestamp::Trait + token::Trait {
-    //type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+    type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -34,21 +34,23 @@ decl_storage! {
     trait Store for Module<T: Trait> as Identity {
         //Keys Store
         Keys get(getKeyFor): map (T::AccountId, T::AccountId) => Key<T::AccountId>;
-        KeysByPurpose get(getKeyForPurpose): map (T::AccountId, u16) => Vec<T::AccountId>;
+        KeysByPurpose get(getKeysByPurpose): map (T::AccountId, u16) => Vec<T::AccountId>;
         
         //Claim Store
     }
 }
 
-// decl_event! {
-//   pub enum Event<T> {
-
-//   }
-// }
+decl_event! {
+    pub enum Event<T> where AccountId = <T as system::Trait>::AccountId, {
+        KeyAdded(AccountId, Key<AccountId>),
+        KeyRemoved(AccountId, AccountId),
+        KeysRequiredChanged(u16, u16),
+    }
+}
 
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        //fn deposit_event<T>() = default;
+        fn deposit_event<T>() = default;
         
         //ERC734(Setters + Side Effects)//
         fn addKey(origin, toAccount: T::AccountId, _key: T::AccountId, _purpose: u16, _keyType: u16) -> Result {
@@ -63,7 +65,7 @@ decl_module! {
             let keyTuple = (toAccount.clone(), _key.clone());
             ensure!(!<Keys<T>>::exists(keyTuple), "Key already exists - change purpose?");
 
-            //Add key
+            //Add key to Keys
             let key = Key {
                 key: _key.clone(),
                 purpose: _purpose.clone(),
@@ -71,13 +73,14 @@ decl_module! {
             };
             <Keys<T>>::insert((toAccount.clone(), _key.clone()), key.clone()); 
             
-            //Insert Keys by purpose
+            //Add Key to  KeysByPurpose
             let purposeTuple = (toAccount.clone(), _purpose.clone());
-            let mut keyVector = Self::getKeyForPurpose(purposeTuple.clone());
+            let mut keyVector = Self::getKeysByPurpose(purposeTuple.clone());
             keyVector.push(_key.clone());
             <KeysByPurpose<T>>::insert(purposeTuple, keyVector);
 
             //Emit event
+            Self::deposit_event(RawEvent::KeyAdded(toAccount, key));
 
             Ok(())
         }
@@ -87,16 +90,21 @@ decl_module! {
 
             //Ensure key exists
             let keyTuple = (sender.clone(), _key.clone());
-            ensure!(!<Keys<T>>::exists(keyTuple), "Key already exists - change purpose?");
-           
-            //Ensure key has same purpose
-            //Is this necessary?//
+            ensure!(<Keys<T>>::exists(&keyTuple), "Key not found");
 
-            //Remove key
+            //Remove key from Keys
+            <Keys<T>>::remove(keyTuple);
             
+            //Remove Key from KeysByPurpose
+            let purposeTuple = (sender.clone(), _purpose.clone());
+            let keyToRemove = _key.clone();
+            let mut keysByPurposeVector = Self::getKeysByPurpose(&purposeTuple);
+            let index = keysByPurposeVector.iter().position(|item| *item == keyToRemove).unwrap();
+            keysByPurposeVector.remove(index);
+            <KeysByPurpose<T>>::insert(purposeTuple, keysByPurposeVector);
 
             //Emit event
-            //TODO
+            Self::deposit_event(RawEvent::KeyRemoved(sender, _key));
             
             Ok(())
         }
