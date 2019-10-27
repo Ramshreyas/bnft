@@ -22,8 +22,8 @@ pub struct Key<AccountId> {
 #[cfg_attr(feature = "std", derive(Debug))]
 #[derive(Encode, Decode, Default, Clone, PartialEq, Eq)]
 pub struct Claim<AccountId> {
-    topic: u32,
-    scheme: u32,
+    topic: u16,
+    scheme: u16,
     issuer: AccountId,
     signature: Vec<u8>,
     data: Vec<u8>,
@@ -37,6 +37,8 @@ decl_storage! {
         KeysByPurpose get(getKeysByPurpose): map (T::AccountId, u16) => Vec<T::AccountId>;
         
         //Claim Store
+        Claims get(getClaimById): map Vec<u8> => Claim<T::AccountId>;
+        ClaimsByTopic get(getClaimsByTopic): map (T::AccountId, u16) => Vec<Vec<u8>>;
     }
 }
 
@@ -129,22 +131,43 @@ decl_module! {
 
         //ERC735(Setters + Side Effects)//
         fn addClaim(origin, 
-                    topic: u32, 
-                    scheme: u32, 
+                    toAccount: T::AccountId,
+                    topic: u16, 
+                    scheme: u16, 
                     issuer: T::AccountId, 
                     signature: Vec<u8>, 
                     data: Vec<u8>,
                     uri: Vec<u8>) -> Result 
         {
             let sender = ensure_signed(origin)?;
+            
+            //Ensure sender is same as issuer, or has rights to sign
+            if(sender.clone() != toAccount.clone()) {
+                ensure!(Self::keyHasPurpose(issuer.clone(), sender.clone(), 3), "You are not authorized!");
+            }
+            
+            //Check if claim already exists
+            let mut issuer_as_bytes = issuer.encode();
+            let mut topic_as_bytes = topic.encode();
+            let claimId_bytes = [issuer_as_bytes, topic_as_bytes].concat();
+            let claimId = keccak_256(&claimId_bytes);
+
+            //Keccak_256 issuer + claim type to create claim ID
+
+
+            //Add claim to claims
+
+
+            //Add to claims by type
+
 
             Ok(())
         }
 
         fn changeClaim(origin, 
                        claimId: Vec<u8>,
-                       topic: u32, 
-                       scheme: u32, 
+                       topic: u16, 
+                       scheme: u16, 
                        issuer: T::AccountId, 
                        signature: Vec<u8>, 
                        data: Vec<u8>,
