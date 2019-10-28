@@ -142,24 +142,38 @@ decl_module! {
             let sender = ensure_signed(origin)?;
             
             //Ensure sender is same as issuer, or has rights to sign
-            if(sender.clone() != toAccount.clone()) {
+            if(sender.clone() != issuer.clone()) {
                 ensure!(Self::keyHasPurpose(issuer.clone(), sender.clone(), 3), "You are not authorized!");
             }
             
-            //Check if claim already exists
+            //Generate ClaimId
+            let mut to_account_as_bytes = toAccount.encode();
             let mut issuer_as_bytes = issuer.encode();
             let mut topic_as_bytes = topic.encode();
-            let claimId_bytes = [issuer_as_bytes, topic_as_bytes].concat();
-            let claimId = keccak_256(&claimId_bytes);
+            let claimId_bytes = [to_account_as_bytes, issuer_as_bytes, topic_as_bytes].concat();
+            let claimId = keccak_256(&claimId_bytes).to_vec();
 
-            //Keccak_256 issuer + claim type to create claim ID
-
+            //Check if claim already exists
+            ensure!(!<Claims<T>>::exists(&claimId), "Claim already exists!");
 
             //Add claim to claims
-
+            let claim = Claim {
+                topic,
+                scheme,
+                issuer: issuer.clone(),
+                signature,
+                data,
+                uri,
+            };
+            <Claims<T>>::insert(claimId.clone(), claim);
 
             //Add to claims by type
+            let claim_by_type_tuple = (toAccount.clone(), topic.clone());
+            let mut claims_vector = Self::getClaimsByTopic(claim_by_type_tuple.clone());
+            claims_vector.push(claimId.clone());
+            <ClaimsByTopic<T>>::insert(claim_by_type_tuple, claims_vector);
 
+            //Emit event
 
             Ok(())
         }
