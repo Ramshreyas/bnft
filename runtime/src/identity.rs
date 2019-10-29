@@ -44,9 +44,13 @@ decl_storage! {
 
 decl_event! {
     pub enum Event<T> where AccountId = <T as system::Trait>::AccountId, {
+        //ERC734 events
         KeyAdded(AccountId, Key<AccountId>),
         KeyRemoved(AccountId, AccountId),
         KeysRequiredChanged(u16, u16),
+
+        //ERC735 events
+        ClaimAdded(AccountId, Vec<u8>),
     }
 }
 
@@ -167,13 +171,14 @@ decl_module! {
             };
             <Claims<T>>::insert(claimId.clone(), claim);
 
-            //Add to claims by type
+            //Add to claims by topic
             let claim_by_type_tuple = (toAccount.clone(), topic.clone());
             let mut claims_vector = Self::getClaimsByTopic(claim_by_type_tuple.clone());
             claims_vector.push(claimId.clone());
             <ClaimsByTopic<T>>::insert(claim_by_type_tuple, claims_vector);
 
             //Emit event
+            Self::deposit_event(RawEvent::ClaimAdded(toAccount, claimId));
 
             Ok(())
         }
