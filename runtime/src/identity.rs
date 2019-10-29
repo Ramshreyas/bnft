@@ -51,6 +51,7 @@ decl_event! {
 
         //ERC735 events
         ClaimAdded(AccountId, Vec<u8>),
+        ClaimRemoved(AccountId, Vec<u8>),
     }
 }
 
@@ -145,7 +146,7 @@ decl_module! {
         {
             let sender = ensure_signed(origin)?;
             
-            //Ensure sender is same as issuer, or has rights to sign
+            //Ensure sender is same as issuer, or has rights to add claim
             if(sender.clone() != issuer.clone()) {
                 ensure!(Self::keyHasPurpose(issuer.clone(), sender.clone(), 3), "You are not authorized!");
             }
@@ -197,8 +198,32 @@ decl_module! {
             Ok(())
         }
 
-        fn removeClaim(origin, claimId: Vec<u8>) -> Result {
+        fn removeClaim(origin, forAccount: T::AccountId, claimId: Vec<u8>) -> Result {
             let sender = ensure_signed(origin)?;
+            
+            //Check if claim exists
+            ensure!(<Claims<T>>::exists(&claimId), "Claim not found!");
+
+            //Check if sender is issuer, has requisite authority or is owner
+            let claim_to_remove = Self::getClaimById(&claimId);
+            let issuer = claim_to_remove.issuer.clone();
+            if(sender.clone() != issuer.clone() && sender.clone() != forAccount) {
+                ensure!(Self::keyHasPurpose(issuer, sender, 3), "You are not authorized!");
+            }
+
+            //Remove from Claims
+            <Claims<T>>::remove(&claimId);
+
+            //Remove from ClaimsByTopic
+            let claim_by_topic_tuple = (forAccount.clone(), claim_to_remove.topic.clone());
+            let claimId_to_remove = claimId.clone();
+            let mut claims_by_topic_vector = Self::getClaimsByTopic(&claim_by_topic_tuple);
+            let index = claims_by_topic_vector.iter().position(|item| *item == claimId_to_remove).unwrap();
+            claims_by_topic_vector.remove(index);
+            <ClaimsByTopic<T>>::insert(claim_by_topic_tuple, claims_by_topic_vector);
+            
+            //Emit event
+            Self::deposit_event(RawEvent::ClaimRemoved(forAccount, claimId));
 
             Ok(())
         }
