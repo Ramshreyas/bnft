@@ -34,7 +34,7 @@ decl_storage! {
     trait Store for Module<T: Trait> as Identity {
         //Keys Store
         Keys get(getKeyFor): map (T::AccountId, T::AccountId) => Key<T::AccountId>;
-        KeysByPurpose get(getKeysByPurpose): map (T::AccountId, u16) => Vec<T::AccountId>;
+        KeysByPurpose get(keysByPurpose): map (T::AccountId, u16) => Vec<T::AccountId>;
         
         //Claim Store
         Claims get(getClaimById): map Vec<u8> => Claim<T::AccountId>;
@@ -82,7 +82,7 @@ decl_module! {
             
             //Add Key to  KeysByPurpose
             let purposeTuple = (toAccount.clone(), _purpose.clone());
-            let mut keyVector = Self::getKeysByPurpose(purposeTuple.clone());
+            let mut keyVector = Self::keysByPurpose(purposeTuple.clone());
             keyVector.push(_key.clone());
             <KeysByPurpose<T>>::insert(purposeTuple, keyVector);
 
@@ -105,7 +105,7 @@ decl_module! {
             //Remove Key from KeysByPurpose
             let purposeTuple = (sender.clone(), _purpose.clone());
             let keyToRemove = _key.clone();
-            let mut keysByPurposeVector = Self::getKeysByPurpose(&purposeTuple);
+            let mut keysByPurposeVector = Self::keysByPurpose(&purposeTuple);
             let index = keysByPurposeVector.iter().position(|item| *item == keyToRemove).unwrap();
             keysByPurposeVector.remove(index);
             <KeysByPurpose<T>>::insert(purposeTuple, keysByPurposeVector);
@@ -232,9 +232,9 @@ decl_module! {
 
 impl<T: Trait> Module<T> {
     //ERC734 Getters//
-    // pub fn getKey(_key: Vec<U8>) -> Key {
-        
-    // }
+    pub fn getKey(forAccount: T::AccountId, _key: T::AccountId) -> Key<T::AccountId> {
+        Self::getKey(forAccount, _key)
+    }
 
     pub fn keyHasPurpose(forAccount: T::AccountId, _key: T::AccountId, _purpose: u16) -> bool {
         //Check if key exists
@@ -248,20 +248,20 @@ impl<T: Trait> Module<T> {
         hasPurpose
     }
 
-    // pub fn getKeysByPurpose(_purpose: u8) -> Vec<Vec<U8>> {
-        
-    // }
+    pub fn getKeysByPurpose(_forAccount: T::AccountId, _purpose: u16) -> Vec<T::AccountId> {
+        Self::keysByPurpose((_forAccount, _purpose))
+    }
 
     // pub fn getKeysRequired(_purpose: u8) -> u8 {
 
     // }
 
     // //ERC735 Getters//
-    // pub fn getClaim(claimId: Vec<U8>) -> Claim<T::AccountId> {
+    pub fn getClaim(claimId: Vec<u8>) -> Claim<T::AccountId> {
+        Self::getClaim(claimId)
+    }
 
-    // }
-
-    // pub fn getClaimIdsByTopic(_topic: u32) -> Vec<u32> {
-
-    // }
+    pub fn getClaimIdsByTopic(forAccount: T::AccountId, _topic: u16) -> Vec<Vec<u8>> {
+        Self::getClaimsByTopic((forAccount, _topic))
+    }
 }
