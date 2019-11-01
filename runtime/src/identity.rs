@@ -155,7 +155,7 @@ decl_module! {
             let mut to_account_as_bytes = toAccount.encode();
             let mut issuer_as_bytes = issuer.encode();
             let mut topic_as_bytes = topic.encode();
-            let claimId_bytes = [to_account_as_bytes, issuer_as_bytes, topic_as_bytes].concat();
+            let claimId_bytes = [issuer_as_bytes, topic_as_bytes, to_account_as_bytes].concat();
             let claimId = keccak_256(&claimId_bytes).to_vec();
 
             //Check if claim already exists
@@ -263,5 +263,13 @@ impl<T: Trait> Module<T> {
 
     pub fn getClaimIdsByTopic(forAccount: T::AccountId, _topic: u16) -> Vec<Vec<u8>> {
         Self::getClaimsByTopic((forAccount, _topic))
+    }
+
+    pub fn claimExists(claimId: Vec<u8>) -> bool {
+        let claim = Self::getClaim(claimId);
+        match claim.topic {
+            0 => false,
+            _ => true,
+        }
     }
 }
