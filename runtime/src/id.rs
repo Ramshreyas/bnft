@@ -31,7 +31,7 @@ pub struct Claim<AccountId> {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait> as Identity {
+    trait Store for Module<T: Trait> as Id {
         //Keys Store
         Keys get(getKeyFor): map (T::AccountId, T::AccountId) => Key<T::AccountId>;
         KeysByPurpose get(keysByPurpose): map (T::AccountId, u16) => Vec<T::AccountId>;
@@ -265,11 +265,11 @@ impl<T: Trait> Module<T> {
         Self::getClaimsByTopic((forAccount, _topic))
     }
 
-    pub fn claimExists(claimId: Vec<u8>) -> bool {
-        let claim = Self::getClaim(claimId);
-        match claim.topic {
-            0 => false,
-            _ => true,
+    pub fn claimExists(claimId: Vec<u8>) -> Result {
+        if <Claims<T>>::exists(claimId) {
+            Ok(())
+        } else {
+            Err("Claim not found!")
         }
     }
 }

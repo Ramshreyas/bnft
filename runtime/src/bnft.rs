@@ -5,10 +5,10 @@ use runtime_primitives::traits::{Zero, Hash, Saturating, As, CheckedAdd, Checked
 use {system::ensure_signed, timestamp};
 use rstd::prelude::*;
 use crate::token;
-use crate::identity;
+use crate::id;
 use runtime_io::keccak_256;
 
-pub trait Trait: balances::Trait + timestamp::Trait + token::Trait + identity::Trait {
+pub trait Trait: balances::Trait + timestamp::Trait + token::Trait + id::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
@@ -217,7 +217,7 @@ decl_module! {
             let beneficiary_bytes = uri.encode();
             let claimId_bytes = [issuer_bytes, topic_bytes, beneficiary_bytes].concat();
             let claimId = keccak_256(&claimId_bytes).to_vec();
-            let claimExists = <identity::Module<T>>::claimExists(claimId);
+            let claimExists = <id::Module<T>>::claimExists(claimId).is_ok();
             ensure!(claimExists, "Beneficiary does not have required credentials");
 
             //Ensure total supply has not been exceeded
