@@ -211,14 +211,9 @@ decl_module! {
             ensure!(!<Bnfts<T>>::exists(&uriClassIndexTuple), "Bnft already issued");
 
             //Ensure beneficiary has correct credential
+            ensure!(&bnftClass.beneficiary_credentials.len() < &6, "Too many credentials to check!");
             for required_credential_tuple in bnftClass.beneficiary_credentials {
-                let issuer_bytes = required_credential_tuple.0.encode();
-                let topic_bytes = required_credential_tuple.1.encode();
-                let beneficiary_bytes = uri.encode();
-                let claimId_bytes = [issuer_bytes, topic_bytes, beneficiary_bytes].concat();
-                let claimId = keccak_256(&claimId_bytes).to_vec();
-                //ensure!(claimExists, "Beneficiary does not have required credentials");
-                ensure!(Self::claim_is_valid(uri.clone(), claimId), "Invalid Claim");
+                ensure!(Self::claim_is_valid(required_credential_tuple, uri.clone()), "Invalid Claim");
             }
 
             //Ensure total supply has not been exceeded
@@ -311,9 +306,22 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    fn claim_is_valid(uri: T::AccountId, claimId: Vec<u8>) -> bool {
+    fn claim_is_valid(required_credential_tuple: (T::AccountId, u16), uri: T::AccountId) -> bool {
+        let issuer_bytes = required_credential_tuple.0.encode();
+        let topic_bytes = required_credential_tuple.1.encode();
+        let beneficiary_bytes = uri.encode();
+        let claimId_bytes = [issuer_bytes, topic_bytes, beneficiary_bytes].concat();
+        let claimId = keccak_256(&claimId_bytes).to_vec();        
         let claimExists = <id::Module<T>>::claimExists(claimId.clone()).is_ok();
-        claimExists
+        if claimExists {
+            Self::validate_claim(claimId)
+        } else {
+            false
+        }
+    }
+
+    fn validate_claim(claimId: Vec<u8>) -> bool {
+        true
     }
 }
 
