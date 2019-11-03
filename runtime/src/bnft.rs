@@ -217,8 +217,8 @@ decl_module! {
                 let beneficiary_bytes = uri.encode();
                 let claimId_bytes = [issuer_bytes, topic_bytes, beneficiary_bytes].concat();
                 let claimId = keccak_256(&claimId_bytes).to_vec();
-                let claimExists = <id::Module<T>>::claimExists(claimId).is_ok();
-                ensure!(claimExists, "Beneficiary does not have required credentials");
+                //ensure!(claimExists, "Beneficiary does not have required credentials");
+                ensure!(Self::claim_is_valid(uri.clone(), claimId), "Invalid Claim");
             }
 
             //Ensure total supply has not been exceeded
@@ -307,6 +307,13 @@ decl_module! {
 
             Ok(())
         }
+    }
+}
+
+impl<T: Trait> Module<T> {
+    fn claim_is_valid(uri: T::AccountId, claimId: Vec<u8>) -> bool {
+        let claimExists = <id::Module<T>>::claimExists(claimId.clone()).is_ok();
+        claimExists
     }
 }
 
