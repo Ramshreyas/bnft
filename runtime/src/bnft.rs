@@ -211,14 +211,15 @@ decl_module! {
             ensure!(!<Bnfts<T>>::exists(&uriClassIndexTuple), "Bnft already issued");
 
             //Ensure beneficiary has correct credential
-            let required_credential_tuple = &bnftClass.beneficiary_credentials[0];
-            let issuer_bytes = required_credential_tuple.0.encode();
-            let topic_bytes = required_credential_tuple.1.encode();
-            let beneficiary_bytes = uri.encode();
-            let claimId_bytes = [issuer_bytes, topic_bytes, beneficiary_bytes].concat();
-            let claimId = keccak_256(&claimId_bytes).to_vec();
-            let claimExists = <id::Module<T>>::claimExists(claimId).is_ok();
-            ensure!(claimExists, "Beneficiary does not have required credentials");
+            for required_credential_tuple in bnftClass.beneficiary_credentials {
+                let issuer_bytes = required_credential_tuple.0.encode();
+                let topic_bytes = required_credential_tuple.1.encode();
+                let beneficiary_bytes = uri.encode();
+                let claimId_bytes = [issuer_bytes, topic_bytes, beneficiary_bytes].concat();
+                let claimId = keccak_256(&claimId_bytes).to_vec();
+                let claimExists = <id::Module<T>>::claimExists(claimId).is_ok();
+                ensure!(claimExists, "Beneficiary does not have required credentials");
+            }
 
             //Ensure total supply has not been exceeded
             let remainingBnftsForClass = Self::remaining_bnfts_for(class_index);
